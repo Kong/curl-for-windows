@@ -52,6 +52,7 @@ tsa_policy3 = 1.2.3.4.5.7
 
 [openssl_init]
 providers = provider_sect
+legacy = legacy_sect
 
 # List of providers to load
 [provider_sect]
@@ -68,9 +69,11 @@ default = default_sect
 # becomes unavailable in openssl.  As a consequence applications depending on
 # OpenSSL may not work correctly which could lead to significant system
 # problems including inability to remotely access the system.
-[default_sect]
-# activate = 1
+[[default_sect]
+activate = 1
 
+[legacy_sect]
+activate = 1
 
 ####################################################################
 [ ca ]

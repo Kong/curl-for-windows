@@ -69,7 +69,7 @@ default = default_sect
 # becomes unavailable in openssl.  As a consequence applications depending on
 # OpenSSL may not work correctly which could lead to significant system
 # problems including inability to remotely access the system.
-[[default_sect]
+[default_sect]
 activate = 1
 
 [legacy_sect]

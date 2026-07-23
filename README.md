@@ -35,7 +35,7 @@ source code.
 
 * [Python 2.7](python.org)
 * [Visual Studio](https://visualstudio.microsoft.com/pt-br/vs/community/)
-* [NASM](https://www.nasm.us/) (Required to use ASM version of openssl)
+* [NASM](https://www.nasm.us/) (Required to use ASM version of openssl; not required for `--target-arch arm64`)
 
 # Obtaining prerequisites 
 	
@@ -62,6 +62,15 @@ Options:
     $ python configure.py 
 
 Open respective **curl.sln** found in **out** folder ;)
+
+# Windows ARM64
+
+On a native Windows ARM64 host, build with:
+
+    $ python configure.py --target-arch arm64
+
+NASM is not required for `arm64` (OpenSSL uses its no-asm path). NASM is still
+required for the `x64` / `ia32` OpenSSL asm path.
 
 # Simple curl example
 

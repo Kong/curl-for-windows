@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2020-2023 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -358,7 +358,8 @@ static int test_single_key(PKCS12_ENC *enc)
     char fname[80];
     PKCS12_BUILDER *pb;
 
-    sprintf(fname, "1key_ciph-%s_iter-%d.p12", OBJ_nid2sn(enc->nid), enc->iter);
+    BIO_snprintf(fname, sizeof(fname), "1key_ciph-%s_iter-%d.p12",
+                 OBJ_nid2sn(enc->nid), enc->iter);
 
     pb = new_pkcs12_builder(fname);
 
@@ -457,7 +458,8 @@ static int test_single_cert_mac(PKCS12_ENC *mac)
     char fname[80];
     PKCS12_BUILDER *pb;
 
-    sprintf(fname, "1cert_mac-%s_iter-%d.p12", OBJ_nid2sn(mac->nid), mac->iter);
+    BIO_snprintf(fname, sizeof(fname), "1cert_mac-%s_iter-%d.p12",
+                 OBJ_nid2sn(mac->nid), mac->iter);
 
     pb = new_pkcs12_builder(fname);
 
@@ -617,7 +619,8 @@ static int test_single_secret(PKCS12_ENC *enc)
     char fname[80];
     PKCS12_BUILDER *pb;
 
-    sprintf(fname, "1secret_ciph-%s_iter-%d.p12", OBJ_nid2sn(enc->nid), enc->iter);
+    BIO_snprintf(fname, sizeof(fname), "1secret_ciph-%s_iter-%d.p12",
+                 OBJ_nid2sn(enc->nid), enc->iter);
     pb = new_pkcs12_builder(fname);
     custom_nid = get_custom_oid();
 
@@ -792,6 +795,70 @@ err:
 }
 #endif
 
+static int pkcs12_recreate_test(void)
+{
+    int ret = 0;
+    X509 *cert = NULL;
+    X509 *cert_parsed = NULL;
+    EVP_PKEY *pkey = NULL;
+    EVP_PKEY *pkey_parsed = NULL;
+    PKCS12 *p12 = NULL;
+    PKCS12 *p12_parsed = NULL;
+    PKCS12 *p12_recreated = NULL;
+    const unsigned char *cert_bytes = CERT1;
+    const unsigned char *key_bytes = KEY1;
+    BIO *bio = NULL;
+
+    cert = d2i_X509(NULL, &cert_bytes, sizeof(CERT1));
+    if (!TEST_ptr(cert))
+        goto err;
+    pkey = d2i_AutoPrivateKey(NULL, &key_bytes, sizeof(KEY1));
+    if (!TEST_ptr(pkey))
+        goto err;
+    p12 = PKCS12_create("pass", NULL, pkey, cert, NULL, NID_aes_256_cbc,
+                        NID_aes_256_cbc, 2, 1, 0);
+    if (!TEST_ptr(p12))
+        goto err;
+    if (!TEST_int_eq(ERR_peek_error(), 0))
+        goto err;
+
+    bio = BIO_new(BIO_s_mem());
+    if (!TEST_ptr(bio))
+        goto err;
+    if (!TEST_int_eq(i2d_PKCS12_bio(bio, p12), 1))
+        goto err;
+    p12_parsed = PKCS12_init_ex(NID_pkcs7_data, testctx, NULL);
+    if (!TEST_ptr(p12_parsed))
+        goto err;
+    p12_parsed = d2i_PKCS12_bio(bio, &p12_parsed);
+    if (!TEST_ptr(p12_parsed))
+        goto err;
+    if (!TEST_int_eq(PKCS12_parse(p12_parsed, "pass", &pkey_parsed,
+                                  &cert_parsed, NULL), 1))
+        goto err;
+
+    /* cert_parsed also contains auxiliary data */
+    p12_recreated = PKCS12_create("new_pass", NULL, pkey_parsed, cert_parsed,
+                                  NULL, NID_aes_256_cbc, NID_aes_256_cbc,
+                                  2, 1, 0);
+    if (!TEST_ptr(p12_recreated))
+        goto err;
+    if (!TEST_int_eq(ERR_peek_error(), 0))
+        goto err;
+
+    ret = 1;
+err:
+    BIO_free(bio);
+    PKCS12_free(p12);
+    PKCS12_free(p12_parsed);
+    PKCS12_free(p12_recreated);
+    EVP_PKEY_free(pkey);
+    EVP_PKEY_free(pkey_parsed);
+    X509_free(cert);
+    X509_free(cert_parsed);
+    return ret;
+}
+
 typedef enum OPTION_choice {
     OPT_ERR = -1,
     OPT_EOF = 0,
@@ -873,6 +940,8 @@ int setup_tests(void)
     if (default_libctx)
         ADD_TEST(pkcs12_create_test);
 #endif
+    if (default_libctx)
+        ADD_TEST(pkcs12_recreate_test);
     ADD_ALL_TESTS(test_single_key_enc_pass, OSSL_NELEM(passwords));
     ADD_ALL_TESTS(test_single_key_enc_iter, OSSL_NELEM(iters));
     ADD_TEST(test_single_key_with_attrs);

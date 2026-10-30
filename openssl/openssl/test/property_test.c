@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2022 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2019-2025 The OpenSSL Project Authors. All Rights Reserved.
  * Copyright (c) 2019, Oracle and/or its affiliates.  All rights reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
@@ -50,30 +50,37 @@ static void down_ref(void *p)
 
 static int test_property_string(void)
 {
-    OSSL_METHOD_STORE *store;
+    OSSL_LIB_CTX *ctx;
+    OSSL_METHOD_STORE *store = NULL;
     int res = 0;
     OSSL_PROPERTY_IDX i, j;
 
-    if (TEST_ptr(store = ossl_method_store_new(NULL))
-        && TEST_int_eq(ossl_property_name(NULL, "fnord", 0), 0)
-        && TEST_int_ne(ossl_property_name(NULL, "fnord", 1), 0)
-        && TEST_int_ne(ossl_property_name(NULL, "name", 1), 0)
+    /*-
+     * Use our own library context because we depend on ordering from a
+     * pristine state.
+     */
+    if (TEST_ptr(ctx = OSSL_LIB_CTX_new())
+        && TEST_ptr(store = ossl_method_store_new(ctx))
+        && TEST_int_eq(ossl_property_name(ctx, "fnord", 0), 0)
+        && TEST_int_ne(ossl_property_name(ctx, "fnord", 1), 0)
+        && TEST_int_ne(ossl_property_name(ctx, "name", 1), 0)
         /* Property value checks */
-        && TEST_int_eq(ossl_property_value(NULL, "fnord", 0), 0)
-        && TEST_int_ne(i = ossl_property_value(NULL, "no", 0), 0)
-        && TEST_int_ne(j = ossl_property_value(NULL, "yes", 0), 0)
+        && TEST_int_eq(ossl_property_value(ctx, "fnord", 0), 0)
+        && TEST_int_ne(i = ossl_property_value(ctx, "no", 0), 0)
+        && TEST_int_ne(j = ossl_property_value(ctx, "yes", 0), 0)
         && TEST_int_ne(i, j)
-        && TEST_int_eq(ossl_property_value(NULL, "yes", 1), j)
-        && TEST_int_eq(ossl_property_value(NULL, "no", 1), i)
-        && TEST_int_ne(i = ossl_property_value(NULL, "illuminati", 1), 0)
-        && TEST_int_eq(j = ossl_property_value(NULL, "fnord", 1), i + 1)
-        && TEST_int_eq(ossl_property_value(NULL, "fnord", 1), j)
+        && TEST_int_eq(ossl_property_value(ctx, "yes", 1), j)
+        && TEST_int_eq(ossl_property_value(ctx, "no", 1), i)
+        && TEST_int_ne(i = ossl_property_value(ctx, "illuminati", 1), 0)
+        && TEST_int_eq(j = ossl_property_value(ctx, "fnord", 1), i + 1)
+        && TEST_int_eq(ossl_property_value(ctx, "fnord", 1), j)
         /* Check name and values are distinct */
-        && TEST_int_eq(ossl_property_value(NULL, "cold", 0), 0)
-        && TEST_int_ne(ossl_property_name(NULL, "fnord", 0),
-                       ossl_property_value(NULL, "fnord", 0)))
+        && TEST_int_eq(ossl_property_value(ctx, "cold", 0), 0)
+        && TEST_int_ne(ossl_property_name(ctx, "fnord", 0),
+                       ossl_property_value(ctx, "fnord", 0)))
         res = 1;
     ossl_method_store_free(store);
+    OSSL_LIB_CTX_free(ctx);
     return res;
 }
 
@@ -107,6 +114,10 @@ static const struct {
     { "n=0x3", "n=3", 1 },
     { "n=0x3", "n=-3", -1 },
     { "n=0x33", "n=51", 1 },
+    { "n=0x123456789abcdef", "n=0x123456789abcdef", 1 },
+    { "n=0x7fffffffffffffff", "n=0x7fffffffffffffff", 1 },   /* INT64_MAX */
+    { "n=9223372036854775807", "n=9223372036854775807", 1 }, /* INT64_MAX */
+    { "n=0777777777777777777777", "n=0777777777777777777777", 1 }, /* INT64_MAX */
     { "n=033", "n=27", 1 },
     { "n=0", "n=00", 1 },
     { "n=0x0", "n=0", 1 },
@@ -165,9 +176,13 @@ static const struct {
     { 0, "a=abc,#@!, n=1" },    /* non-ASCII character located */
     { 1, "a='Hello" },          /* Unterminated string */
     { 0, "a=\"World" },         /* Unterminated string */
+    { 0, "a=_abd_" },           /* Unquoted string not starting with alphabetic */
     { 1, "a=2, n=012345678" },  /* Bad octal digit */
     { 0, "n=0x28FG, a=3" },     /* Bad hex digit */
     { 0, "n=145d, a=2" },       /* Bad decimal digit */
+    { 0, "n=0x8000000000000000, a=3" },     /* Hex overflow */
+    { 0, "n=922337203000000000d, a=2" },    /* Decimal overflow */
+    { 0, "a=2, n=1000000000000000000000" }, /* Octal overflow */
     { 1, "@='hello'" },         /* Invalid name */
     { 1, "n0123456789012345678901234567890123456789"
          "0123456789012345678901234567890123456789"
@@ -255,19 +270,42 @@ static int test_property_merge(int n)
 static int test_property_defn_cache(void)
 {
     OSSL_METHOD_STORE *store;
-    OSSL_PROPERTY_LIST *red, *blue;
-    int r = 0;
+    OSSL_PROPERTY_LIST *red = NULL, *blue = NULL, *blue2 = NULL;
+    int r;
 
-    if (TEST_ptr(store = ossl_method_store_new(NULL))
+    r = TEST_ptr(store = ossl_method_store_new(NULL))
         && add_property_names("red", "blue", NULL)
         && TEST_ptr(red = ossl_parse_property(NULL, "red"))
         && TEST_ptr(blue = ossl_parse_property(NULL, "blue"))
         && TEST_ptr_ne(red, blue)
-        && TEST_true(ossl_prop_defn_set(NULL, "red", red))
-        && TEST_true(ossl_prop_defn_set(NULL, "blue", blue))
-        && TEST_ptr_eq(ossl_prop_defn_get(NULL, "red"), red)
-        && TEST_ptr_eq(ossl_prop_defn_get(NULL, "blue"), blue))
-        r = 1;
+        && TEST_true(ossl_prop_defn_set(NULL, "red", &red));
+
+    if (!r)  {
+        ossl_property_free(red);
+        red = NULL;
+        ossl_property_free(blue);
+        blue = NULL;
+    }
+
+    r = r && TEST_true(ossl_prop_defn_set(NULL, "blue", &blue));
+    if (!r) {
+        ossl_property_free(blue);
+        blue = NULL;
+    }
+
+    r = r && TEST_ptr_eq(ossl_prop_defn_get(NULL, "red"), red)
+        && TEST_ptr_eq(ossl_prop_defn_get(NULL, "blue"), blue)
+        && TEST_ptr(blue2 = ossl_parse_property(NULL, "blue"))
+        && TEST_ptr_ne(blue2, blue)
+        && TEST_true(ossl_prop_defn_set(NULL, "blue", &blue2));
+    if (!r) {
+        ossl_property_free(blue2);
+        blue2 = NULL;
+    }
+
+    r = r && TEST_ptr_eq(blue2, blue)
+        && TEST_ptr_eq(ossl_prop_defn_get(NULL, "blue"), blue);
+
     ossl_method_store_free(store);
     return r;
 }
@@ -592,6 +630,9 @@ static struct {
     { "", "" },
     { "fips=3", "fips=3" },
     { "fips=-3", "fips=-3" },
+    { "provider='foo bar'", "provider='foo bar'" },
+    { "provider=\"foo bar'\"", "provider=\"foo bar'\"" },
+    { "provider=abc***", "provider='abc***'" },
     { NULL, "" }
 };
 

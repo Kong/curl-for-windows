@@ -97,13 +97,19 @@ Base64 process the data. This means that if encryption is taking place
 the data is base64 encoded after encryption. If decryption is set then
 the input data is base64 decoded before being decrypted.
 
+When the B<-A> option not given,
+on encoding a newline is inserted after each 64 characters, and
+on decoding a newline is expected among the first 1024 bytes of input.
+
 =item B<-base64>
 
 Same as B<-a>
 
 =item B<-A>
 
-If the B<-a> option is set then base64 process the data on one line.
+If the B<-a> option is set then base64 encoding produces output without any
+newline character, and base64 decoding does not require any newlines.
+Therefore it can be helpful to use the B<-A> option when decoding unknown input.
 
 =item B<-k> I<password>
 
@@ -129,7 +135,8 @@ This option enables the use of PBKDF2 algorithm to derive the key.
 
 =item B<-pbkdf2>
 
-Use PBKDF2 algorithm with default iteration count unless otherwise specified.
+Use PBKDF2 algorithm with a default iteration count of 10000
+unless otherwise specified by the B<-iter> command line option.
 
 =item B<-nosalt>
 
@@ -255,6 +262,19 @@ block length.
 All RC2 ciphers have the same key and effective key length.
 
 Blowfish and RC5 algorithms use a 128 bit key.
+
+Please note that OpenSSL 3.0 changed the effect of the B<-S> option.
+Any explicit salt value specified via this option is no longer prepended to the
+ciphertext when encrypting, and must again be explicitly provided when decrypting.
+Conversely, when the B<-S> option is used during decryption, the ciphertext
+is expected to not have a prepended salt value.
+
+When using OpenSSL 3.0 or later to decrypt data that was encrypted with an
+explicit salt under OpenSSL 1.1.1 do not use the B<-S> option, the salt will
+then be read from the ciphertext.
+To generate ciphertext that can be decrypted with OpenSSL 1.1.1 do not use
+the B<-S> option, the salt will be then be generated randomly and prepended
+to the output.
 
 =head1 SUPPORTED CIPHERS
 
@@ -420,6 +440,9 @@ Base64 decode a file then decrypt it using a password supplied in a file:
 =head1 BUGS
 
 The B<-A> option when used with large files doesn't work properly.
+On the other hand, when base64 decoding without the B<-A> option,
+if the first 1024 bytes of input do not include a newline character
+the first two lines of input are ignored.
 
 The B<openssl enc> command only supports a fixed number of algorithms with
 certain parameters. So if, for example, you want to use RC2 with a
@@ -435,7 +458,7 @@ The B<-ciphers> and B<-engine> options were deprecated in OpenSSL 3.0.
 
 =head1 COPYRIGHT
 
-Copyright 2000-2021 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2000-2024 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

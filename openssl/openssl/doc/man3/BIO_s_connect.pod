@@ -28,7 +28,7 @@ BIO_set_nbio, BIO_do_connect - connect BIO
 
  long BIO_set_nbio(BIO *b, long n);
 
- int BIO_do_connect(BIO *b);
+ long BIO_do_connect(BIO *b);
 
 =head1 DESCRIPTION
 
@@ -59,7 +59,7 @@ a single call: that is it creates a new connect BIO with hostname B<name>.
 
 BIO_set_conn_hostname() uses the string B<name> to set the hostname.
 The hostname can be an IP address; if the address is an IPv6 one, it
-must be enclosed with brackets C<[> and C<]>.
+must be enclosed in brackets C<[> and C<]>.
 The hostname can also include the port in the form hostname:port;
 see L<BIO_parse_hostserv(3)> and BIO_set_conn_port() for details.
 
@@ -201,7 +201,7 @@ Use BIO_set_conn_address() and BIO_get_conn_address() instead.
 
 =head1 COPYRIGHT
 
-Copyright 2000-2021 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2000-2023 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

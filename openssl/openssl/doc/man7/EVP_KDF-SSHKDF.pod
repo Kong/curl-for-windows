@@ -15,6 +15,8 @@ Five inputs are required to perform key derivation: The hashing function
 (for example SHA256), the Initial Key, the Exchange Hash, the Session ID,
 and the derivation key type.
 
+The output is considered to be keying material.
+
 =head2 Identity
 
 "SSHKDF" is the name for this implementation; it
@@ -143,6 +145,10 @@ L<EVP_KDF_CTX_set_params(3)>,
 L<EVP_KDF_CTX_get_kdf_size(3)>,
 L<EVP_KDF_derive(3)>,
 L<EVP_KDF(3)/PARAMETERS>
+
+=head1 HISTORY
+
+This functionality was added in OpenSSL 3.0.
 
 =head1 COPYRIGHT
 

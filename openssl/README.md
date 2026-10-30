@@ -87,3 +87,24 @@ Also remove the architecture from the list of supported ASM architectures in
 ### Upgrading OpenSSL
 
 Please refer to [maintaining-openssl](../../doc/contributing/maintaining/maintaining-openssl.md).
+
+### Synced from Node.js
+
+This directory is a copy of `nodejs/node` `deps/openssl` at `v22.23.4`
+(OpenSSL 3.5.9), with these adaptations for this repository:
+
+- `openssl.gyp`: `PRODUCT_DIR` instead of `PRODUCT_DIR_ABS_CSTR`
+- `openssl.gyp`, `openssl-cli.gypi`: `enable_lto` conditions dropped, this build has no LTO
+- `openssl.gyp`: `clang%` defaults to 0, `configure.py` does not detect the toolchain
+
+`OPENSSL_TLS_SECURITY_LEVEL=1` from the Node.js files is kept on purpose: OpenSSL
+3.0 defaulted to security level 1, 3.5 defaults to 2, and the shipped client
+behaviour must not change.
+
+To review or redo the sync, compare this directory with the pinned Node.js tree:
+
+```console
+$ git clone --depth 1 --branch v22.23.4 --filter=blob:none --sparse https://github.com/nodejs/node
+$ cd node && git sparse-checkout set deps/openssl
+$ diff -r deps/openssl ../curl-for-windows/openssl
+```

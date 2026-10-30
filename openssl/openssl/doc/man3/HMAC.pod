@@ -71,6 +71,9 @@ I<evp_md> is a message digest such as EVP_sha1(), EVP_ripemd160() etc.
 HMAC does not support variable output length digests such as EVP_shake128() and
 EVP_shake256().
 
+HMAC() uses the default B<OSSL_LIB_CTX>.
+Use L<EVP_Q_mac(3)> instead if a library context is required.
+
 All of the functions described below are deprecated.
 Applications should instead use L<EVP_MAC_CTX_new(3)>, L<EVP_MAC_CTX_free(3)>,
 L<EVP_MAC_init(3)>, L<EVP_MAC_update(3)> and L<EVP_MAC_final(3)>
@@ -84,7 +87,7 @@ created with HMAC_CTX_new().
 
 HMAC_CTX_free() erases the key and other data from the B<HMAC_CTX>,
 releases any associated resources and finally frees the B<HMAC_CTX>
-itself.
+itself. If the argument is NULL, nothing is done.
 
 The following functions may be used if the message is not completely
 stored in memory:
@@ -160,7 +163,7 @@ OpenSSL before version 1.0.0.
 
 =head1 COPYRIGHT
 
-Copyright 2000-2021 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2000-2024 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

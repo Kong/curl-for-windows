@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2022 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2019-2024 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -188,7 +188,12 @@ static int test_print_key_using_pem(const char *alg, const EVP_PKEY *pk)
         /* Unencrypted private key in PEM form */
         || !TEST_true(PEM_write_bio_PrivateKey(membio, pk,
                                                NULL, NULL, 0, NULL, NULL))
-        || !TEST_true(compare_with_file(alg, PRIV_PEM, membio)))
+        || !TEST_true(compare_with_file(alg, PRIV_PEM, membio))
+        /* NULL key */
+        || !TEST_false(PEM_write_bio_PrivateKey(membio, NULL,
+                                               NULL, NULL, 0, NULL, NULL))
+        || !TEST_false(PEM_write_bio_PrivateKey_traditional(membio, NULL,
+                                               NULL, NULL, 0, NULL, NULL)))
         goto err;
 
     ret = 1;
@@ -384,7 +389,7 @@ static int test_fromdata_rsa(void)
                                           fromdata_params), 1))
         goto err;
 
-    while (dup_pk == NULL) {
+    for (;;) {
         ret = 0;
         if (!TEST_int_eq(EVP_PKEY_get_bits(pk), 32)
             || !TEST_int_eq(EVP_PKEY_get_security_bits(pk), 8)
@@ -412,7 +417,10 @@ static int test_fromdata_rsa(void)
         ret = test_print_key_using_pem("RSA", pk)
               && test_print_key_using_encoder("RSA", pk);
 
-        if (!ret || !TEST_ptr(dup_pk = EVP_PKEY_dup(pk)))
+        if (!ret || dup_pk != NULL)
+            break;
+
+        if (!TEST_ptr(dup_pk = EVP_PKEY_dup(pk)))
             goto err;
         ret = ret && TEST_int_eq(EVP_PKEY_eq(pk, dup_pk), 1);
         EVP_PKEY_free(pk);
@@ -597,7 +605,7 @@ static int test_fromdata_dh_named_group(void)
                                                       &len)))
         goto err;
 
-    while (dup_pk == NULL) {
+    for (;;) {
         ret = 0;
         if (!TEST_int_eq(EVP_PKEY_get_bits(pk), 2048)
             || !TEST_int_eq(EVP_PKEY_get_security_bits(pk), 112)
@@ -677,7 +685,10 @@ static int test_fromdata_dh_named_group(void)
         ret = test_print_key_using_pem("DH", pk)
               && test_print_key_using_encoder("DH", pk);
 
-        if (!ret || !TEST_ptr(dup_pk = EVP_PKEY_dup(pk)))
+        if (!ret || dup_pk != NULL)
+            break;
+
+        if (!TEST_ptr(dup_pk = EVP_PKEY_dup(pk)))
             goto err;
         ret = ret && TEST_int_eq(EVP_PKEY_eq(pk, dup_pk), 1);
         EVP_PKEY_free(pk);
@@ -778,7 +789,7 @@ static int test_fromdata_dh_fips186_4(void)
                                           fromdata_params), 1))
         goto err;
 
-    while (dup_pk == NULL) {
+    for (;;) {
         ret = 0;
         if (!TEST_int_eq(EVP_PKEY_get_bits(pk), 2048)
             || !TEST_int_eq(EVP_PKEY_get_security_bits(pk), 112)
@@ -852,7 +863,10 @@ static int test_fromdata_dh_fips186_4(void)
         ret = test_print_key_using_pem("DH", pk)
               && test_print_key_using_encoder("DH", pk);
 
-        if (!ret || !TEST_ptr(dup_pk = EVP_PKEY_dup(pk)))
+        if (!ret || dup_pk != NULL)
+            break;
+
+        if (!TEST_ptr(dup_pk = EVP_PKEY_dup(pk)))
             goto err;
         ret = ret && TEST_int_eq(EVP_PKEY_eq(pk, dup_pk), 1);
         EVP_PKEY_free(pk);
@@ -1085,7 +1099,7 @@ static int test_fromdata_ecx(int tst)
                                           fromdata_params), 1))
         goto err;
 
-    while (dup_pk == NULL) {
+    for (;;) {
         ret = 0;
         if (!TEST_int_eq(EVP_PKEY_get_bits(pk), bits)
             || !TEST_int_eq(EVP_PKEY_get_security_bits(pk), security_bits)
@@ -1125,6 +1139,12 @@ static int test_fromdata_ecx(int tst)
                /* This should succeed because there are no parameters to copy */
             || !TEST_true(EVP_PKEY_copy_parameters(copy_pk, pk)))
             goto err;
+        if (!TEST_ptr(ctx2 = EVP_PKEY_CTX_new_from_pkey(NULL, copy_pk, NULL))
+               /* This should fail because copy_pk has no pubkey */
+            || !TEST_int_le(EVP_PKEY_public_check(ctx2), 0))
+            goto err;
+        EVP_PKEY_CTX_free(ctx2);
+        ctx2 = NULL;
         EVP_PKEY_free(copy_pk);
         copy_pk = NULL;
 
@@ -1134,7 +1154,10 @@ static int test_fromdata_ecx(int tst)
             ret = test_print_key_using_pem(alg, pk)
                   && test_print_key_using_encoder(alg, pk);
 
-        if (!ret || !TEST_ptr(dup_pk = EVP_PKEY_dup(pk)))
+        if (!ret || dup_pk != NULL)
+            break;
+
+        if (!TEST_ptr(dup_pk = EVP_PKEY_dup(pk)))
             goto err;
         ret = ret && TEST_int_eq(EVP_PKEY_eq(pk, dup_pk), 1);
         EVP_PKEY_free(pk);
@@ -1180,13 +1203,20 @@ static int test_fromdata_ec(void)
        0x7f, 0x59, 0x5f, 0x8c, 0xd1, 0x96, 0x0b, 0xdf,
        0x29, 0x3e, 0x49, 0x07, 0x88, 0x3f, 0x9a, 0x29
     };
+    /* SAME BUT COMPRESSED FORMAT */
+    static const unsigned char ec_pub_keydata_compressed[] = {
+       POINT_CONVERSION_COMPRESSED+1,
+       0x1b, 0x93, 0x67, 0x55, 0x1c, 0x55, 0x9f, 0x63,
+       0xd1, 0x22, 0xa4, 0xd8, 0xd1, 0x0a, 0x60, 0x6d,
+       0x02, 0xa5, 0x77, 0x57, 0xc8, 0xa3, 0x47, 0x73,
+       0x3a, 0x6a, 0x08, 0x28, 0x39, 0xbd, 0xc9, 0xd2
+    };
     static const unsigned char ec_priv_keydata[] = {
         0x33, 0xd0, 0x43, 0x83, 0xa9, 0x89, 0x56, 0x03,
         0xd2, 0xd7, 0xfe, 0x6b, 0x01, 0x6f, 0xe4, 0x59,
         0xcc, 0x0d, 0x9a, 0x24, 0x6c, 0x86, 0x1b, 0x2e,
         0xdc, 0x4b, 0x4d, 0x35, 0x43, 0xe1, 0x1b, 0xad
     };
-    const int compressed_sz = 1 + (sizeof(ec_pub_keydata) - 1) / 2;
     unsigned char out_pub[sizeof(ec_pub_keydata)];
     char out_curve_name[80];
     const OSSL_PARAM *gettable = NULL;
@@ -1209,9 +1239,17 @@ static int test_fromdata_ec(void)
     if (OSSL_PARAM_BLD_push_utf8_string(bld, OSSL_PKEY_PARAM_GROUP_NAME,
                                         curve, 0) <= 0)
         goto err;
+    /*
+     * We intentionally provide the input point in compressed format,
+     * and avoid setting `OSSL_PKEY_PARAM_EC_POINT_CONVERSION_FORMAT`.
+     *
+     * Later on we check what format is used when exporting the
+     * `OSSL_PKEY_PARAM_PUB_KEY` and expect to default to uncompressed
+     * format.
+     */
     if (OSSL_PARAM_BLD_push_octet_string(bld, OSSL_PKEY_PARAM_PUB_KEY,
-                                         ec_pub_keydata,
-                                         sizeof(ec_pub_keydata)) <= 0)
+                                         ec_pub_keydata_compressed,
+                                         sizeof(ec_pub_keydata_compressed)) <= 0)
         goto err;
     if (OSSL_PARAM_BLD_push_BN(bld, OSSL_PKEY_PARAM_PRIV_KEY, ec_priv_bn) <= 0)
         goto err;
@@ -1236,7 +1274,7 @@ static int test_fromdata_ec(void)
                                           fromdata_params), 1))
         goto err;
 
-    while (dup_pk == NULL) {
+    for (;;) {
         ret = 0;
         if (!TEST_int_eq(EVP_PKEY_get_bits(pk), 256)
             || !TEST_int_eq(EVP_PKEY_get_security_bits(pk), 128)
@@ -1275,6 +1313,15 @@ static int test_fromdata_ec(void)
             || !TEST_BN_eq(group_b, b))
             goto err;
 
+        EC_GROUP_free(group);
+        group = NULL;
+        BN_free(group_p);
+        group_p = NULL;
+        BN_free(group_a);
+        group_a = NULL;
+        BN_free(group_b);
+        group_b = NULL;
+
         if (!EVP_PKEY_get_utf8_string_param(pk, OSSL_PKEY_PARAM_GROUP_NAME,
                                             out_curve_name,
                                             sizeof(out_curve_name),
@@ -1282,9 +1329,17 @@ static int test_fromdata_ec(void)
             || !TEST_str_eq(out_curve_name, curve)
             || !EVP_PKEY_get_octet_string_param(pk, OSSL_PKEY_PARAM_PUB_KEY,
                                             out_pub, sizeof(out_pub), &len)
-            || !TEST_true(out_pub[0] == (POINT_CONVERSION_COMPRESSED + 1))
+
+            /*
+             * Our providers use uncompressed format by default if
+             * `OSSL_PKEY_PARAM_EC_POINT_CONVERSION_FORMAT` was not
+             * explicitly set, irrespective of the format used for the
+             * input point given as a param to create this key.
+             */
+            || !TEST_true(out_pub[0] == POINT_CONVERSION_UNCOMPRESSED)
             || !TEST_mem_eq(out_pub + 1, len - 1,
-                            ec_pub_keydata + 1, compressed_sz - 1)
+                            ec_pub_keydata + 1, sizeof(ec_pub_keydata) - 1)
+
             || !TEST_true(EVP_PKEY_get_bn_param(pk, OSSL_PKEY_PARAM_PRIV_KEY,
                                                 &bn_priv))
             || !TEST_BN_eq(ec_priv_bn, bn_priv))
@@ -1295,7 +1350,10 @@ static int test_fromdata_ec(void)
         ret = test_print_key_using_pem(alg, pk)
               && test_print_key_using_encoder(alg, pk);
 
-        if (!ret || !TEST_ptr(dup_pk = EVP_PKEY_dup(pk)))
+        if (!ret || dup_pk != NULL)
+            break;
+
+        if (!TEST_ptr(dup_pk = EVP_PKEY_dup(pk)))
             goto err;
         ret = ret && TEST_int_eq(EVP_PKEY_eq(pk, dup_pk), 1);
         EVP_PKEY_free(pk);
@@ -1541,7 +1599,7 @@ static int test_fromdata_dsa_fips186_4(void)
                                           fromdata_params), 1))
         goto err;
 
-    while (dup_pk == NULL) {
+    for (;;) {
         ret = 0;
         if (!TEST_int_eq(EVP_PKEY_get_bits(pk), 2048)
             || !TEST_int_eq(EVP_PKEY_get_security_bits(pk), 112)
@@ -1590,12 +1648,12 @@ static int test_fromdata_dsa_fips186_4(void)
                                                  &pcounter_out))
             || !TEST_int_eq(pcounter, pcounter_out))
             goto err;
-        BN_free(p);
-        p = NULL;
-        BN_free(q);
-        q = NULL;
-        BN_free(g);
-        g = NULL;
+        BN_free(p_out);
+        p_out = NULL;
+        BN_free(q_out);
+        q_out = NULL;
+        BN_free(g_out);
+        g_out = NULL;
         BN_free(j_out);
         j_out = NULL;
         BN_free(pub_out);
@@ -1623,7 +1681,10 @@ static int test_fromdata_dsa_fips186_4(void)
         ret = test_print_key_using_pem("DSA", pk)
               && test_print_key_using_encoder("DSA", pk);
 
-        if (!ret || !TEST_ptr(dup_pk = EVP_PKEY_dup(pk)))
+        if (!ret || dup_pk != NULL)
+            break;
+
+        if (!TEST_ptr(dup_pk = EVP_PKEY_dup(pk)))
             goto err;
         ret = ret && TEST_int_eq(EVP_PKEY_eq(pk, dup_pk), 1);
         EVP_PKEY_free(pk);

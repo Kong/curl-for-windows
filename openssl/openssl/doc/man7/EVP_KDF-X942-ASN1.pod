@@ -13,6 +13,8 @@ contains a 32 bit counter as well as optional fields for "partyu-info",
 "partyv-info", "supp-pubinfo" and "supp-privinfo".
 This kdf is used by Cryptographic Message Syntax (CMS).
 
+The output is considered to be keying material.
+
 =head2 Identity
 
 "X942KDF-ASN1" or "X942KDF" is the name for this implementation; it
@@ -137,7 +139,7 @@ L<EVP_KDF(3)/PARAMETERS>
 
 =head1 HISTORY
 
-This functionality was added to OpenSSL 3.0.
+This functionality was added in OpenSSL 3.0.
 
 =head1 COPYRIGHT
 

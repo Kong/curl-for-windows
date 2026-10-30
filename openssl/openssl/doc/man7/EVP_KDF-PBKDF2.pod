@@ -13,6 +13,8 @@ The EVP_KDF-PBKDF2 algorithm implements the PBKDF2 password-based key
 derivation function, as described in SP800-132; it derives a key from a password
 using a salt and iteration count.
 
+The output is considered to be a cryptographic key.
+
 =head2 Identity
 
 "PBKDF2" is the name for this implementation; it
@@ -90,7 +92,7 @@ L<EVP_KDF(3)/PARAMETERS>
 
 =head1 HISTORY
 
-This functionality was added to OpenSSL 3.0.
+This functionality was added in OpenSSL 3.0.
 
 =head1 COPYRIGHT
 

@@ -41,7 +41,7 @@ The returned value must eventually be freed with EVP_KEYEXCH_free().
 EVP_KEYEXCH_free() decrements the reference count for the B<EVP_KEYEXCH>
 structure. Typically this structure will have been obtained from an earlier call
 to EVP_KEYEXCH_fetch(). If the reference count drops to 0 then the
-structure is freed.
+structure is freed. If the argument is NULL, nothing is done.
 
 EVP_KEYEXCH_up_ref() increments the reference count for an B<EVP_KEYEXCH>
 structure.
@@ -71,7 +71,7 @@ of the implementations, calls I<fn> with the implementation method and
 I<data> as arguments.
 
 EVP_KEYEXCH_gettable_ctx_params() and EVP_KEYEXCH_settable_ctx_params() return
-a constant B<OSSL_PARAM> array that describes the names and types of key
+a constant L<OSSL_PARAM(3)> array that describes the names and types of key
 parameters that can be retrieved or set by a key exchange algorithm using
 L<EVP_PKEY_CTX_get_params(3)> and L<EVP_PKEY_CTX_set_params(3)>.
 
@@ -89,7 +89,7 @@ EVP_KEYEXCH_is_a() returns 1 of I<exchange> was identifiable,
 otherwise 0.
 
 EVP_KEYEXCH_gettable_ctx_params() and EVP_KEYEXCH_settable_ctx_params() return
-a constant B<OSSL_PARAM> array or NULL on error.
+a constant L<OSSL_PARAM(3)> array or NULL on error.
 
 =head1 SEE ALSO
 
@@ -101,7 +101,7 @@ The functions described here were added in OpenSSL 3.0.
 
 =head1 COPYRIGHT
 
-Copyright 2019-2021 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2019-2024 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

@@ -21,9 +21,17 @@ sys.path.insert( 0, os.path.join( root_dir, 'build', 'gyp', 'pylib' ) )
 import gyp
 
 def host_arch():
+    if os.name == 'nt':
+        observed = os.environ.get('PROCESSOR_ARCHITECTURE', 'AMD64')
+        arch = os.environ.get('PROCESSOR_ARCHITEW6432', observed)
+        return {'AMD64': 'x64', 'x86': 'ia32', 'ARM64': 'arm64'}.get(arch, 'x64')
     machine = platform.machine()
-    if machine == 'i386':
+    if machine in ('i386', 'i686'):
         return 'ia32'
+    if machine in ('AMD64', 'x86_64'):
+        return 'x64'
+    if machine in ('ARM64', 'aarch64'):
+        return 'arm64'
     return 'x64'
 
 # parse our options
@@ -41,7 +49,7 @@ parser.add_option( '--target-arch',
                 action='store',
                 dest='target_arch',
                 type='choice',
-                choices=['ia32', 'x64'],
+                choices=['ia32', 'x64', 'arm64'],
                 help='CPU architecture to build for. [default: %default]',
                 default=host_arch() )
 
@@ -85,11 +93,16 @@ def configure_defines(o):
     """
     # we probably can make this a config option here...
     o.extend(['-D', 'experimental_quic=0'])
-    o.extend(['-D', 'openssl_no_asm=0'])
-    nasm_version = get_nasm_version('nasm')
-    if nasm_version == '0.0':
-        raise Exception('nasm not found.')
-    o.extend(['-D', 'nasm_version=%s' % nasm_version])
+    target_arch = getoption(options.target_arch, host_arch())
+    if target_arch == 'arm64':
+        o.extend(['-D', 'openssl_no_asm=1'])
+        o.extend(['-D', 'nasm_version=0.0'])
+    else:
+        o.extend(['-D', 'openssl_no_asm=0'])
+        nasm_version = get_nasm_version('nasm')
+        if nasm_version == '0.0':
+            raise Exception('nasm not found.')
+        o.extend(['-D', 'nasm_version=%s' % nasm_version])
     o.extend(['-D', 'debug_nghttp2=0'])
     # nodejs options
     o.extend(['-D', 'node_shared_openssl=false'])

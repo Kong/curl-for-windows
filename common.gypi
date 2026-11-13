@@ -24,6 +24,10 @@
               'msvs_configuration_platform': 'x64',
             }
           ],
+          ['target_arch=="arm64"', {
+              'msvs_configuration_platform': 'arm64',
+            }
+          ],
         ],
         'msvs_settings': {
           'VCCLCompilerTool': {
@@ -32,6 +36,9 @@
             'MinimalRebuild': 'false',
             'OmitFramePointers': 'false',
             'BasicRuntimeChecks': 3, # /RTC1
+            'conditions': [
+              ['target_arch=="arm64"', { 'FloatingPointModel': 1 }], # /fp:strict
+            ],
           },
           'VCLinkerTool': {
             'LinkIncremental': 2, #enable incremental linking
@@ -39,6 +46,9 @@
   	        [
   	          ['target_arch=="x64"', {
   	            'TargetMachine': 17 # /MACHINE:X64
+  	          }],
+  	          ['target_arch=="arm64"', {
+  	            'TargetMachine': 0 # NotSet; MSVC infers ARM64 from inputs
   	          }],
   	        ],
           },
@@ -48,6 +58,10 @@
 	      'conditions': [
           ['target_arch=="x64"', {#
               'msvs_configuration_platform': 'x64',
+            }
+          ],
+          ['target_arch=="arm64"', {
+              'msvs_configuration_platform': 'arm64',
             }
           ],
         ],
@@ -66,6 +80,9 @@
             'AdditionalOptions': [
               '/MP', #compile across multiple CPUs
             ],
+            'conditions': [
+              ['target_arch=="arm64"', { 'FloatingPointModel': 1 }], # /fp:strict
+            ],
           },
           'VCLibrarianTool': {
             'AdditionalOptions': [
@@ -81,6 +98,9 @@
   	        [
   	          ['target_arch=="x64"', {
   	            'TargetMachine': 17 # /MACHINE:X64
+  	          }],
+  	          ['target_arch=="arm64"', {
+  	            'TargetMachine': 0 # NotSet; MSVC infers ARM64 from inputs
   	          }],
   	        ],
           },

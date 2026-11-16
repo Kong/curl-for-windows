@@ -38,8 +38,7 @@
         'BUILDING_LIBCURL',
       ],
       'dependencies': [
-        # c-ares is disabled at the moment due to this: https://github.com/JCMais/node-libcurl/issues/280
-        # 'cares/cares.gyp:cares',
+        # c-ares is not vendored or built; see the USE_ARES note above
         'brotli/brotli.gyp:brotli',
         'openssl/openssl.gyp:openssl',
         'libssh2.gyp:libssh2',

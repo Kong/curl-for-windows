@@ -17,7 +17,7 @@ This was originally a fork of the project https://github.com/peters/curl-for-win
 This repository is a collection of dependencies that curl need to build successfully.
 Each submodule tries to track the latest known git release tag. When not using a git submodule
 for the dependency, the direct source code was added to this repository, this is the case for
-`nghttp2`, `openssl`, and `cares`, for these, their .gyp files were retrieved from the Node.js
+`nghttp2` and `openssl`, for these, their .gyp files were retrieved from the Node.js
 source code.
 
 **Both x86 and x64 builds are supported.**
@@ -28,7 +28,6 @@ source code.
 - [Libssh2](http://libssh2.org)
 - [nghttp2](https://nghttp2.org/)
 - [Zlib](http://zlib.net)
-- [cares](https://c-ares.haxx.se/)
 - [brotli](https://github.com/google/brotli)
 
 # Prerequisites
@@ -94,7 +93,6 @@ in the official curl repository.
   - openssl.lib
   - libssh2.lib
   - brotli.lib
-  - cares.lib
   - zlib.lib
   - wsock32.lib
   - wldap32.lib
@@ -150,14 +148,6 @@ At the time of writing this, the upgrade process was as easy as:
 1. copy the folder over.
 2. Replace `<(PRODUCT_DIR_ABS)/` with `<(PRODUCT_DIR)/`.
 3. done.
-
-## Upgrading c-ares
-
-c-ares is based on Node.js version: https://github.com/nodejs/node/tree/v17.x/deps/cares
-
-At the time of writing this, the upgrade process was as easy as:
-1. copy the folder over.
-2. done.
 
 ## Upgrading brotli
 
